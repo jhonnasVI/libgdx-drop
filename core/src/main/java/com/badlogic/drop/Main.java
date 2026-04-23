@@ -3,12 +3,13 @@ package com.badlogic.drop;
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.Input.Keys;
-import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
@@ -17,6 +18,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
+import com.badlogic.gdx.math.Matrix4;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main implements ApplicationListener {
@@ -39,6 +41,16 @@ public class Main implements ApplicationListener {
 
     Rectangle bucketRectangle;
     Rectangle dropRectangle;
+
+    BitmapFont font;
+    GlyphLayout layout;
+
+    int score = 0;
+    int highScore = 0;
+
+    Preferences prefs;
+
+    private final Matrix4 hudMatrix = new Matrix4();
 
     @Override
     public void create() {
@@ -63,6 +75,19 @@ public class Main implements ApplicationListener {
 
         bucketRectangle = new Rectangle();
         dropRectangle = new Rectangle();
+
+        font = new BitmapFont();
+        font.setUseIntegerPositions(false);
+        font.getData().setScale(2.5f);
+
+        layout = new GlyphLayout();
+
+        prefs = Gdx.app.getPreferences("DropGameScores");
+        highScore = prefs.getInteger("highScore", 0);
+
+        music.setLooping(true);
+        music.setVolume(.5f);
+        music.play();
 
         music.setLooping(true);
         music.setVolume(.5f);
@@ -129,9 +154,19 @@ public class Main implements ApplicationListener {
 
             if(dropSprite.getY() < -dropHeight){
                 dropSprites.removeIndex(i);
+                // reset current run if missed
+                score = 0;
             } else if (bucketRectangle.overlaps(dropRectangle)) {
                 dropSprites.removeIndex(i);
                 dropSound.play(); // play the sound
+
+                score++;
+                if(score > highScore) {
+                    highScore = score;
+
+                    prefs.putInteger("highScore", highScore);
+                    prefs.flush();
+                }
             }
         }
 
@@ -145,8 +180,10 @@ public class Main implements ApplicationListener {
 
 
     private void draw() {
+        GlyphLayout layout = new GlyphLayout();
         ScreenUtils.clear(Color.BLACK);
         viewport.apply();
+
         spriteBatch.setProjectionMatrix(viewport.getCamera().combined);
         spriteBatch.begin();
 
@@ -156,10 +193,37 @@ public class Main implements ApplicationListener {
         spriteBatch.draw(backGroundTexture, 0, 0, worldWidth, worldHeight);
         bucketSprite.draw(spriteBatch);
 
-        // draw each sprite
         for (Sprite dropSprite : dropSprites) {
             dropSprite.draw(spriteBatch);
         }
+
+        spriteBatch.end();
+
+
+        hudMatrix.setToOrtho2D(
+            0,
+            0,
+            Gdx.graphics.getWidth(),
+            Gdx.graphics.getHeight()
+        );
+
+        spriteBatch.setProjectionMatrix(hudMatrix);
+        spriteBatch.begin();
+
+        font.draw(spriteBatch,
+            "Score: " + score,
+            10,
+            Gdx.graphics.getHeight() - 20
+        );
+
+        String highText = "High Score: " + highScore;
+        float padding = 10;
+        layout.setText(font, highText);
+        font.draw(spriteBatch,
+            "High Score: " + highScore,
+            Gdx.graphics.getWidth() - layout.width - padding,
+            Gdx.graphics.getHeight() - padding - 25
+        );
 
         spriteBatch.end();
     }
@@ -190,5 +254,14 @@ public class Main implements ApplicationListener {
     @Override
     public void dispose() {
         // Destroy application's resources here.
+        backGroundTexture.dispose();
+        bucketTexture.dispose();
+        dropTexture.dispose();
+
+        dropSound.dispose();
+        music.dispose();
+
+        font.dispose();
+        spriteBatch.dispose();
     }
 }
