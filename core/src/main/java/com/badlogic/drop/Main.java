@@ -48,6 +48,8 @@ public class Main implements ApplicationListener {
     int score = 0;
     int highScore = 0;
 
+    int misCount = 0;
+
     Preferences prefs;
 
     private final Matrix4 hudMatrix = new Matrix4();
@@ -133,7 +135,6 @@ public class Main implements ApplicationListener {
 
     private void logic() {
         float worldWidth = viewport.getWorldWidth();
-        float worldHeight = viewport.getWorldHeight();
         float bucketWidth = bucketSprite.getWidth();
         float bucketHeight = bucketSprite.getHeight();
 
@@ -155,7 +156,13 @@ public class Main implements ApplicationListener {
             if(dropSprite.getY() < -dropHeight){
                 dropSprites.removeIndex(i);
                 // reset current run if missed
-                score = 0;
+                misCount++;
+
+                if(misCount >= 3) {
+                    score = 0;
+                    misCount = 0;
+                }
+
             } else if (bucketRectangle.overlaps(dropRectangle)) {
                 dropSprites.removeIndex(i);
                 dropSound.play(); // play the sound
@@ -167,10 +174,12 @@ public class Main implements ApplicationListener {
                     prefs.putInteger("highScore", highScore);
                     prefs.flush();
                 }
+
+                misCount = 0;
             }
         }
 
-        // paste the line here
+        // spawn new drops
         dropTimer += delta; // add current timer to the delta
         if(dropTimer > 1f){ // check if it has been more than a second
             dropTimer = 0; // reset the timer
