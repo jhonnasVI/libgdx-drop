@@ -17,8 +17,9 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
-import com.badlogic.gdx.utils.viewport.FitViewport;
+import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main implements ApplicationListener {
@@ -30,7 +31,7 @@ public class Main implements ApplicationListener {
     Music music;
 
     SpriteBatch spriteBatch;
-    FitViewport viewport;
+    ScreenViewport viewport;
 
     Sprite bucketSprite;
 
@@ -50,6 +51,8 @@ public class Main implements ApplicationListener {
 
     int misCount = 0;
 
+    boolean isDragging = false;
+
     Preferences prefs;
 
     private final Matrix4 hudMatrix = new Matrix4();
@@ -66,10 +69,10 @@ public class Main implements ApplicationListener {
         music = Gdx.audio.newMusic(Gdx.files.internal("music.mp3"));
 
         spriteBatch = new SpriteBatch();
-        viewport = new FitViewport(8, 5);
+        viewport = new ScreenViewport();
 
         bucketSprite = new Sprite(bucketTexture);
-        bucketSprite.setSize(1, 1);
+        bucketSprite.setSize(120, 120);
 
         touchPos = new Vector2();
 
@@ -78,9 +81,14 @@ public class Main implements ApplicationListener {
         bucketRectangle = new Rectangle();
         dropRectangle = new Rectangle();
 
-        font = new BitmapFont();
-        font.setUseIntegerPositions(false);
-        font.getData().setScale(2.5f);
+        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("score.otf"));
+        FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
+
+        parameter.size = 100; // adjust size as needed
+        parameter.color = Color.WHITE;
+
+        font = generator.generateFont(parameter);
+        generator.dispose(); // VERY IMPORTANT
 
         layout = new GlyphLayout();
 
@@ -117,7 +125,7 @@ public class Main implements ApplicationListener {
 
     private void input(){
 
-        float speed = 4f;
+        float speed = 600f;
         float delta = Gdx.graphics.getDeltaTime();
 
         if(Gdx.input.isKeyPressed(Input.Keys.RIGHT)){
@@ -126,10 +134,24 @@ public class Main implements ApplicationListener {
             bucketSprite.translateX(-speed * delta);
         }
 
-        if(Gdx.input.isTouched()){
+        if (Gdx.input.justTouched()) {
             touchPos.set(Gdx.input.getX(), Gdx.input.getY());
             viewport.unproject(touchPos);
-            bucketSprite.setCenterX(touchPos.x);
+
+            if (bucketSprite.getBoundingRectangle().contains(touchPos.x, touchPos.y)) {
+                isDragging = true;
+            }
+        }
+
+        if (Gdx.input.isTouched() && isDragging) {
+            touchPos.set(Gdx.input.getX(), Gdx.input.getY());
+            viewport.unproject(touchPos);
+
+            bucketSprite.setCenter(touchPos.x, touchPos.y);
+        }
+
+        if (!Gdx.input.isTouched()) {
+            isDragging = false;
         }
     }
 
@@ -138,7 +160,19 @@ public class Main implements ApplicationListener {
         float bucketWidth = bucketSprite.getWidth();
         float bucketHeight = bucketSprite.getHeight();
 
-        bucketSprite.setX(MathUtils.clamp(bucketSprite.getX(), 0, worldWidth - bucketWidth));
+        float worldHeight = viewport.getWorldHeight();
+
+        bucketSprite.setX(MathUtils.clamp(
+            bucketSprite.getX(),
+            0,
+            worldWidth - bucketWidth
+        ));
+
+        bucketSprite.setY(MathUtils.clamp(
+            bucketSprite.getY(),
+            0,
+            worldHeight - bucketHeight
+        ));
 
         float delta = Gdx.graphics.getDeltaTime();
 
@@ -148,8 +182,9 @@ public class Main implements ApplicationListener {
             Sprite dropSprite = dropSprites.get(i);
             float dropWidth = dropSprite.getWidth();
             float dropHeight = dropSprite.getHeight();
+            float dropSpeed = 500f; // adjust if needed
 
-            dropSprite.translateY(-2f * delta);
+            dropSprite.translateY(-dropSpeed * delta);
 
             dropRectangle.set(dropSprite.getX(), dropSprite.getY(), dropWidth, dropHeight);
 
@@ -238,8 +273,8 @@ public class Main implements ApplicationListener {
     }
 
     private void createDroplet() {
-        float dropWidth = 1;
-        float dropHeight = 1;
+        float dropWidth = 100;
+        float dropHeight = 100;
         float worldWidth = viewport.getWorldWidth();
         float worldHeight = viewport.getWorldHeight();
 
