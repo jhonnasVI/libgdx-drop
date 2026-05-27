@@ -147,7 +147,7 @@ public class Main implements ApplicationListener {
             touchPos.set(Gdx.input.getX(), Gdx.input.getY());
             viewport.unproject(touchPos);
 
-            bucketSprite.setCenter(touchPos.x, touchPos.y);
+            bucketSprite.setCenterX(touchPos.x);
         }
 
         if (!Gdx.input.isTouched()) {
